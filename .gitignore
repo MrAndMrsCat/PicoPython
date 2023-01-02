@@ -1,0 +1,21 @@
+.vs/
+[Bb]in/
+[Dd]ebug/
+[Dd]eploy/
+[Oo]bj/
+[Oo]utput/
+[Pp]ackages/
+[Rr]elease/
+[Ss]ymbols/
+[Tt]est[Rr]esult/
+
+*.suo
+*.tmp
+*.user
+*.vsp
+*.vspx
+
+# User-specific files
+*.suo
+*.user
+*.sln.docstates
