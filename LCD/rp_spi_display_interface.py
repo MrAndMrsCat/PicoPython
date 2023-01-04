@@ -10,6 +10,9 @@ class RPSPIDisplayInterface(object):
     # 22 - DC
     # 13 - RST
     # 12 - BL (PWM)
+
+    SPI_BUFFER_LEN = 4096
+
     def __init__(self, peripheral=0, baud=40000000, data_command_pin=25, reset_pin=27, backlight_pwm_pin=18):
         self._spi = spidev.SpiDev(0,peripheral)
         self._spi.max_speed_hz = baud
@@ -34,7 +37,9 @@ class RPSPIDisplayInterface(object):
 
     def send_data(self, data: bytes):
         GPIO.output(self._data_command_pin, GPIO.HIGH)
-        self._spi.writebytes(data)   
+        
+        for i in range(0, len(data), self.SPI_BUFFER_LEN):
+            self._spi.writebytes(data[i:i+self.SPI_BUFFER_LEN])   
 
     def reset(self):
         GPIO.output(self._reset_pin, 0)
