@@ -3,6 +3,7 @@ import time
 from rp_spi_display_interface import RPSPIDisplayInterface
 from lcd_driver import LCDDriver
 from lcd_text import LCDTextWriter
+from lcd_image import LCDImage
 
 interface = RPSPIDisplayInterface()
 driver = LCDDriver(interface)
@@ -10,19 +11,35 @@ driver = LCDDriver(interface)
 driver.initialize()
 driver.clear()
 
-
-#r, g, b, count = 0.0, 0.0, 0.0, 0
-#for x in range(0, 240, 8):
-#    for y in range(0, 320, 16):
-#        r = x / 240.0
-#        b = y / 320.0
-#        count += 1
+#r, g, b = 0.0, 0.0, 0.0
+#for x in range(0, 320, 8):
+#    for y in range(0, 240, 16):
+#        r = x / 320.0
+#        b = y / 240.0
 #        pixel = driver.pixel_from_rgb(r, g, b)
 #        driver.fill_window(x, y, 8, 16, pixel)
+#        time.sleep(0.05)
 
-
+driver.clear()
 text_writer = LCDTextWriter(driver)
-text_writer.console_write("Hello world! This is a test of the text writing function")
+text_writer.console_write_line("Hello world! This is a test of the text writing function")
+
+text_writer.forecolor = 1, 0, 0
+lyric = "Mamaaa, Just killed a man, Put a gun against his head, pulled my trigger, Now he's dead" 
+text_writer.console_write_line(lyric)
+
+text_writer.forecolor = 0, 0, 1
+lyric = "Mamaaa, life had just begun, But now I've gone and thrown it all away"
+text_writer.console_write_line(lyric)
+
+text_writer.forecolor = 1, 0, 1
+lyric = "Mama, oooh, Didn't mean to make you cry, If I'm not back again this time tomorrow, Carry on, carry on as if nothing really matters"
+text_writer.console_write_line(lyric)
+
+
+driver.clear()
+image = LCDImage(driver)
+image.display_rgb565_binary_file("test.rgb565")
 
 #steps = 3
 #wait = 0.25
