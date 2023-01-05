@@ -14,6 +14,7 @@ class LCDDriver(object):
         self._spi = spi_interface
         self.width = 320
         self.height = 240
+        self.max_buffer_length = 4096
 
 
     def _command(self, command: bytes):
@@ -22,7 +23,7 @@ class LCDDriver(object):
 
     def _data(self, data: bytes):
         self._spi.send_data(data)
-  
+
 
     def set_frame_buffer(self, x: int, y: int, width: int, height: int, pixels: bytes):
         self._command(b'\x2A')
@@ -38,10 +39,19 @@ class LCDDriver(object):
 
 
     def fill_frame_buffer(self, x: int, y: int, width: int, height: int, pixel: bytes):
-        pixels = io.BytesIO(b'')
-        for p in range(width * height):
-            pixels.write(pixel)
-        self.set_frame_buffer(x, y, width, height, pixels.getvalue())
+        buf = io.BytesIO(b'')
+        
+        if width * height * 2 > self.max_buffer_length: # conserve memory
+            for p in range(width):
+                buf.write(pixel)
+
+            for y_idx in range(height):
+                self.set_frame_buffer(x, y + y_idx, width, 1, buf.getvalue())
+
+        else:
+            for p in range(width * height):
+                buf.write(pixel)
+            self.set_frame_buffer(x, y, width, height, buf.getvalue())
 
 
     def pixel_from_rgb(self, red: int, green: int, blue: int):
