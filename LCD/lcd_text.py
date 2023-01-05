@@ -1,6 +1,6 @@
 import io
 import os
-from lcd_driver import LCDDriver
+from .lcd_driver import LCDDriver
 
 class LCDTextWriter(object):
     CHAR_WIDTH = 7
@@ -15,11 +15,12 @@ class LCDTextWriter(object):
         self.console_height = int(self._driver.height / self.CHAR_HEIGHT)
         self.x = 0
         self.y = 0
-        self.forecolor = 0.0, 1.0, 0.0
-        self.backcolor = 0.0, 0.0, 0.0
+        self.forecolor = 0, 255, 0
+        self.backcolor = 0, 0, 0
 
         if self.character_bitmaps is None:
-            self._import_character_bitmaps("./font/consolas")
+            self._import_character_bitmaps("./LCD/font/consolas")
+
 
     def console_write_line(self, characters: str):
         self.console_write(characters)
@@ -55,7 +56,7 @@ class LCDTextWriter(object):
 
     def write_at(self, character, x, y):
         data = self._get_character_bytes(character, self.forecolor, self.backcolor)
-        self._driver.set_window(x, y, self.CHAR_WIDTH, self.CHAR_HEIGHT, data)
+        self._driver.set_frame_buffer(x, y, self.CHAR_WIDTH, self.CHAR_HEIGHT, data)
         
 
     def _get_character_bytes(self, character, forecolor, backcolor):
@@ -65,9 +66,9 @@ class LCDTextWriter(object):
             alpha_inv = 1 - alpha
             r1, g1, b1 = forecolor
             r2, g2, b2 = backcolor
-            r = r1 * alpha + r2 * alpha_inv
-            g = g1 * alpha + g2 * alpha_inv
-            b = b1 * alpha + b2 * alpha_inv
+            r = int(r1 * alpha + r2 * alpha_inv)
+            g = int(g1 * alpha + g2 * alpha_inv)
+            b = int(b1 * alpha + b2 * alpha_inv)
             pixels.write(self._driver.pixel_from_rgb(r, g, b))
         return pixels.getvalue()
 

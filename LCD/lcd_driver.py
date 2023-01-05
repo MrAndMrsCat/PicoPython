@@ -24,7 +24,7 @@ class LCDDriver(object):
         self._spi.send_data(data)
   
 
-    def set_window(self, x: int, y: int, width: int, height: int, pixels: bytes):
+    def set_frame_buffer(self, x: int, y: int, width: int, height: int, pixels: bytes):
         self._command(b'\x2A')
         self._data(x.to_bytes(2, 'big')) 
         self._data((x + width - 1).to_bytes(2, 'big')) 
@@ -37,38 +37,34 @@ class LCDDriver(object):
         self._data(pixels)
 
 
-    def pixel_from_rgb(self, red: float, green: float, blue: float):
-        r = int(red * 0b11111)
-        g = int(green * 0b111111) << 5
-        b = int(blue * 0b11111) << 11
-        return (r|g|b).to_bytes(2, 'big')
-
-
-    def fill_window(self, x: int, y: int, width: int, height: int, pixel: bytes):
+    def fill_frame_buffer(self, x: int, y: int, width: int, height: int, pixel: bytes):
         pixels = io.BytesIO(b'')
         for p in range(width * height):
             pixels.write(pixel)
-        self.set_window(x, y, width, height, pixels.getvalue())
+        self.set_frame_buffer(x, y, width, height, pixels.getvalue())
 
 
-    def fill_rgb(self, red: float, green: float, blue: float):
-        self.fill(self.pixel_from_rgb(red, green, blue))
+    def pixel_from_rgb(self, red: int, green: int, blue: int):
+        r = int(red & 0b11111000) << 8
+        g = int(green & 0b11111100) << 3
+        b = int(blue >> 3) 
+        return (r|g|b).to_bytes(2, 'big')
         
 
-    def fill(self, pixel: bytes):
-        self.fill_window(0, 0, self.width, self.height, pixel)
+    def fill_all_pixels(self, pixel: bytes):
+        self.fill_frame_buffer(0, 0, self.width, self.height, pixel)
 
 
-    def clear(self):
-        self.fill(b'\x00\x00')
+    def clear_screen(self):
+        self.fill_all_pixels(b'\x00\x00')
 
 
     def initialize(self):
         self._spi.reset()
 
-        # Memory Data Access Control (orientation essentially)
+        # Memory Data Access Control (orientation essentially) + self.MADCTL_RGB
         self._command(b'\x36')
-        self._data((self.MADCTL_MX + self.MADCTL_MV + self.MADCTL_MH).to_bytes(1, 'big')) 
+        self._data((self.MADCTL_MX + self.MADCTL_MV + self.MADCTL_MH ).to_bytes(1, 'big')) 
 
         # Interface Pixel Format
         self._command(b'\x3A') 
