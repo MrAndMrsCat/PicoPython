@@ -11,17 +11,23 @@ class LCDTextWriter(object):
     CARRIAGE_RETURN = chr(13)
     character_bitmaps: dict = None # one font at at time for now, all printable ASCII chars uses 8.6kB
 
-    def __init__(self, lcd_driver: LCDDriver):
+    # singleton
+    _instance = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(LCDTextWriter, cls).__new__(cls)
+            cls.x = 0
+            cls.y = 0
+            cls.forecolor = 0, 255, 0
+            cls.backcolor = 0, 0, 0
+            cls._import_character_bitmaps(cls, "./LCD/font/consolas")
+        return cls._instance
+
+
+    def initialize(self, lcd_driver: LCDDriver):
         self._driver: LCDDriver = lcd_driver
         self.console_width = int(self._driver.width / self.CHAR_WIDTH)
         self.console_height = int(self._driver.height / self.CHAR_HEIGHT)
-        self.x = 0
-        self.y = 0
-        self.forecolor = 0, 255, 0
-        self.backcolor = 0, 0, 0
-
-        if self.character_bitmaps is None:
-            self._import_character_bitmaps("./LCD/font/consolas")
 
 
     def console_write(self, string: str):
@@ -34,7 +40,7 @@ class LCDTextWriter(object):
                 self.console_new_line()
                 
             else:
-                self.console_write_at(char, self.x, self.y)
+                self.console_write_at(self.x, self.y, char)
 
                 self.x += 1
                 if self.x >= self.console_width:
@@ -55,12 +61,12 @@ class LCDTextWriter(object):
             self.y = 0 #wrap to top?
 
 
-    def console_write_at(self, char: chr, x, y):
+    def console_write_at(self, x: int, y: int, char: chr):
         """Display a character at this console position"""
         self._set_frame_buffer(char, x * self.CHAR_WIDTH, y * self.CHAR_HEIGHT)
 
 
-    def write_at(self, string: str, x, y):
+    def write_at(self, x: int, y: int, string: str):
         """Display a string at this display coordinate"""
         x_offset = x
         for char in string:

@@ -2,7 +2,7 @@ import io
 
 class LCDDriver(object):
     """Implements the SPI communication protocol for the ST7789VW LCD controller
-    (Waveshare 2inch LCD Module)
+    (Waveshare 2inch LCD Module - https://www.waveshare.com/wiki/2inch_LCD_Module)
     """
 
     # Memory Data Access Control (frame orientation) flags
