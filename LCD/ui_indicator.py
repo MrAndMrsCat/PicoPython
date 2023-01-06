@@ -14,6 +14,7 @@ class Indicator(object):
         self.text: str = text
         self.border: int = 2
         self.size = LCDTextWriter.CHAR_HEIGHT
+        self.text_scale: int = 1
         self.enabled: bool = False
         self.enabled_color = (0, 255, 0)
         self.disabled_color = (100, 100, 100)
@@ -30,7 +31,8 @@ class Indicator(object):
             y_end=self.y + self.size, 
             color=self.back_color
             )
-        self._text_writer.write_at(self.x + self.size + self.border, self.y, self.text)
+        self._text_writer.forecolor = self.text_color
+        self._text_writer.write_at(self.x + self.size + self.border, self.y, self.text, self.text_scale)
         self.draw_indicator()
 
 

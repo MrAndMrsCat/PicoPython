@@ -20,6 +20,9 @@ class WiFiTCPServer(object):
         self.ssid: str = ssid
         self.password: str = password
         self.bytes_received: EventHandler = EventHandler()
+        self.connection_changed: EventHandler = EventHandler()
+        self.wifi_connected: bool = False
+        self.clients_connected: bool = False
         self.port: int = port
         self.static_ip: str = static_ip
         self.gateway: str = gateway
@@ -58,7 +61,6 @@ class WiFiTCPServer(object):
                 await asyncio.sleep(self.retry_interval)
 
             except Exception as ex:
-                logger.error(f"exception: {ex}")
                 logger.exception(ex)
                 await self._dispose_and_sleep()
 
@@ -83,13 +85,27 @@ class WiFiTCPServer(object):
         self._client_write_stream = None
         self._client_read_stream = None
         self._server = None
+        self.clients_connected = False
 
         logger.debug("WLAN.disconnect()")
         self._wlan.disconnect()
-        self._wlan.active(False)
+        self._wlan.active(False) 
+        self.wifi_connected = False
+
+        self._on_connection_changed()
 
         logger.debug(f"wait {self.retry_interval:.0f} seconds to retry")
         await asyncio.sleep(self.retry_interval)
+
+
+    def _on_connection_changed(self):
+        try:
+            self.connection_changed.invoke(self, {
+                "wifi_connected" : self.wifi_connected,
+                "clients_connected" : self.clients_connected
+            })
+        except Exception as ex:
+            logger.exception(ex)
 
 
     async def _start_client_loop(self):
@@ -101,6 +117,9 @@ class WiFiTCPServer(object):
         logger.info(f"client connected")
         self._client_write_stream = writer
         self._client_read_stream = reader
+
+        self.clients_connected = False
+        self._on_connection_changed()
 
         try:
             while self._client_read_stream is not None:
@@ -161,6 +180,8 @@ class WiFiTCPServer(object):
             raise RuntimeError('AP connection failed')
         else:
             logger.info(f"connected to AP with {self.current_ip()}")
+            self.wifi_connected = True
+            self._on_connection_changed()
 
 
     def current_ip(self) -> str:

@@ -20,7 +20,6 @@ class PICOSPIDisplayInterface(object):
         self._reset_pin = Pin(reset_pin, Pin.OUT)
         self._chip_select_pin = Pin(17, Pin.OUT)
         self.reset()
-        print(self._spi)
 
     def send_command(self, command: bytes):
         self._data_command_pin.off() 

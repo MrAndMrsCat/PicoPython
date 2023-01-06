@@ -59,12 +59,27 @@ class LCDDriver(object):
             self.set_frame_buffer(x, y, width, height, buf.getvalue())
 
 
+    def pixel_from_color(self, color: tuple[int, int, int]):
+        return self.pixel_from_rgb(*color)
+    
+            
     def pixel_from_rgb(self, red: int, green: int, blue: int):
         """Convert RGB888 to RGB565"""
         r = int(red & 0b11111000) << 8
         g = int(green & 0b11111100) << 3
         b = int(blue >> 3) 
         return (r|g|b).to_bytes(2, 'big')
+
+
+    def pixel_from_mixture(self, forecolor: int, backcolor: int, alpha: int):
+        a = alpha / 255.0
+        a_inv = 1 - a
+        r1, g1, b1 = forecolor
+        r2, g2, b2 = backcolor
+        r = int(r1 * a + r2 * a_inv)
+        g = int(g1 * a + g2 * a_inv)
+        b = int(b1 * a + b2 * a_inv)
+        return self.pixel_from_rgb(r, g, b)
         
 
     def fill_all_pixels(self, pixel: bytes):

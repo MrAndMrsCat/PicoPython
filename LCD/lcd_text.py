@@ -66,30 +66,37 @@ class LCDTextWriter(object):
         self._set_frame_buffer(char, x * self.CHAR_WIDTH, y * self.CHAR_HEIGHT)
 
 
-    def write_at(self, x: int, y: int, string: str):
+    def write_at(self, x: int, y: int, string: str, scale: int = 1):
         """Display a string at this display coordinate"""
         x_offset = x
         for char in string:
-            self._set_frame_buffer(char, x_offset, y)
-            x_offset += self.CHAR_WIDTH
+            self._set_frame_buffer(char, x_offset, y, scale)
+            x_offset += self.CHAR_WIDTH * scale
 
 
-    def _set_frame_buffer(self, char: chr, x, y):
-        data = self._get_character_bytes(char, self.forecolor, self.backcolor)
-        self._driver.set_frame_buffer(x, y, self.CHAR_WIDTH, self.CHAR_HEIGHT, data)
+    def _set_frame_buffer(self, char: chr, x: int, y: int, scale: int = 1):
+        data = self._get_character_bytes(char, self.forecolor, self.backcolor, scale)
+        self._driver.set_frame_buffer(x, y, self.CHAR_WIDTH * scale, self.CHAR_HEIGHT * scale, data)
         
 
-    def _get_character_bytes(self, char: chr, forecolor: int, backcolor: int):
+    def _get_character_bytes(self, char: chr, forecolor: int, backcolor: int, scale: int = 1):
         pixels = io.BytesIO(b'')
-        for alpha_byte in self.character_bitmaps[char]:
-            alpha = alpha_byte / 255.0
-            alpha_inv = 1 - alpha
-            r1, g1, b1 = forecolor
-            r2, g2, b2 = backcolor
-            r = int(r1 * alpha + r2 * alpha_inv)
-            g = int(g1 * alpha + g2 * alpha_inv)
-            b = int(b1 * alpha + b2 * alpha_inv)
-            pixels.write(self._driver.pixel_from_rgb(r, g, b))
+        if scale == 1:
+            for alpha_byte in self.character_bitmaps[char]:
+                pixels.write(self._driver.pixel_from_mixture(forecolor, backcolor, alpha_byte))
+        else:
+            row = io.BytesIO(b'')
+            index = 0
+            bitmap = self.character_bitmaps[char]
+            for y in range(self.CHAR_HEIGHT):
+                for x in range(self.CHAR_WIDTH):
+                    alpha_byte = bitmap[index]
+                    row.write(self._driver.pixel_from_mixture(forecolor, backcolor, alpha_byte) * scale)
+                    index += 1
+                for r in range(scale):
+                    pixels.write(row.getvalue())
+                row.seek(0)
+
         return pixels.getvalue()
 
 
