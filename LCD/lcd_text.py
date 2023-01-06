@@ -3,6 +3,8 @@ import os
 from .lcd_driver import LCDDriver
 
 class LCDTextWriter(object):
+    """Displays text on an RGB565 display, either with 'console' behavior, or to specific coordinates"""
+
     CHAR_WIDTH = 7
     CHAR_HEIGHT = 13
     LINE_FEED = chr(10)
@@ -22,46 +24,58 @@ class LCDTextWriter(object):
             self._import_character_bitmaps("./LCD/font/consolas")
 
 
-    def console_write_line(self, characters: str):
-        self.console_write(characters)
-        self.new_line()
-
-
-    def console_write(self, characters: str):
-        for char in characters:
-            if char == self.CARRIAGE_RETURN:
+    def console_write(self, string: str):
+        """Display a string, wrap to a new line if the length exceeds the screen width"""
+        for char in string:
+            if char == self.CARRIAGE_RETURN: # assume windows line end format (CR + LF), ignore
                 continue
 
             if char == self.LINE_FEED:
-                self.new_line()
+                self.console_new_line()
                 
             else:
                 self.console_write_at(char, self.x, self.y)
 
                 self.x += 1
                 if self.x >= self.console_width:
-                    self.new_line()
+                    self.console_new_line()
 
 
-    def new_line(self):
+    def console_write_line(self, characters: str):
+        """Display a string, then set the console position one row below and reset x (LF + CR)"""
+        self.console_write(characters)
+        self.console_new_line()
+
+
+    def console_new_line(self):
+        """Set the console position one row below and reset x (LF + CR)"""
         self.x = 0
         self.y += 1
         if self.y >= self.console_height:
             self.y = 0 #wrap to top?
 
 
-    def console_write_at(self, character, x, y):
-        self.write_at(character, x * self.CHAR_WIDTH, y * self.CHAR_HEIGHT)
+    def console_write_at(self, char: chr, x, y):
+        """Display a character at this console position"""
+        self._set_frame_buffer(char, x * self.CHAR_WIDTH, y * self.CHAR_HEIGHT)
 
 
-    def write_at(self, character, x, y):
-        data = self._get_character_bytes(character, self.forecolor, self.backcolor)
+    def write_at(self, string: str, x, y):
+        """Display a string at this display coordinate"""
+        x_offset = x
+        for char in string:
+            self._set_frame_buffer(char, x_offset, y)
+            x_offset += self.CHAR_WIDTH
+
+
+    def _set_frame_buffer(self, char: chr, x, y):
+        data = self._get_character_bytes(char, self.forecolor, self.backcolor)
         self._driver.set_frame_buffer(x, y, self.CHAR_WIDTH, self.CHAR_HEIGHT, data)
         
 
-    def _get_character_bytes(self, character, forecolor, backcolor):
+    def _get_character_bytes(self, char: chr, forecolor: int, backcolor: int):
         pixels = io.BytesIO(b'')
-        for alpha_byte in self.character_bitmaps[character]:
+        for alpha_byte in self.character_bitmaps[char]:
             alpha = alpha_byte / 255.0
             alpha_inv = 1 - alpha
             r1, g1, b1 = forecolor

@@ -3,6 +3,8 @@ import spidev
 import time
 
 class RPSPIDisplayInterface(object):
+    """Implements the SPI interface (for the ST7789VW LCD controller) on the Raspberry Pi 4B"""
+
     # NA - Rx
     # 24 - CSn
     # 23 - SCK

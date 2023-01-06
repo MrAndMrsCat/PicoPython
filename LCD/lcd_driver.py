@@ -1,14 +1,17 @@
 import io
 
 class LCDDriver(object):
+    """Implements the SPI communication protocol for the ST7789VW LCD controller
+    (Waveshare 2inch LCD Module)
+    """
 
-    #  Memory Data Access Control (frame orientation) flags
-    MADCTL_MY = 128   # Page Address Order - Bottom to top
-    MADCTL_MX = 64   # Column Address Order - Right to Left
-    MADCTL_MV = 32   # Page/Column Order - Reverse
-    MADCTL_ML = 16   # Line Address Order - LCD Refresh Bottom to Top
-    MADCTL_RGB = 8 # RGB/BGR Order
-    MADCTL_MH = 4  # Display Data Latch Data Order - LCD Refresh Right to Left 
+    # Memory Data Access Control (frame orientation) flags
+    MADCTL_MY = 128 # Page Address Order - Bottom to top
+    MADCTL_MX = 64  # Column Address Order - Right to Left
+    MADCTL_MV = 32  # Page/Column Order - Reverse
+    MADCTL_ML = 16  # Line Address Order - LCD Refresh Bottom to Top
+    MADCTL_RGB = 8  # RGB/BGR Order
+    MADCTL_MH = 4   # Display Data Latch Data Order - LCD Refresh Right to Left 
 
     def __init__(self, spi_interface):
         self._spi = spi_interface
@@ -26,6 +29,7 @@ class LCDDriver(object):
 
 
     def set_frame_buffer(self, x: int, y: int, width: int, height: int, pixels: bytes):
+        """Set pixels from left to right, top to bottom"""
         self._command(b'\x2A')
         self._data(x.to_bytes(2, 'big')) 
         self._data((x + width - 1).to_bytes(2, 'big')) 
@@ -39,6 +43,7 @@ class LCDDriver(object):
 
 
     def fill_frame_buffer(self, x: int, y: int, width: int, height: int, pixel: bytes):
+        """Set all pixels to the same value"""
         buf = io.BytesIO(b'')
         
         if width * height * 2 > self.max_buffer_length: # conserve memory
@@ -55,6 +60,7 @@ class LCDDriver(object):
 
 
     def pixel_from_rgb(self, red: int, green: int, blue: int):
+        """Convert RGB888 to RGB565"""
         r = int(red & 0b11111000) << 8
         g = int(green & 0b11111100) << 3
         b = int(blue >> 3) 
@@ -62,10 +68,12 @@ class LCDDriver(object):
         
 
     def fill_all_pixels(self, pixel: bytes):
+        """Fill the screen with the same pixel"""
         self.fill_frame_buffer(0, 0, self.width, self.height, pixel)
 
 
     def clear_screen(self):
+        """Fill the screen black"""
         self.fill_all_pixels(b'\x00\x00')
 
 

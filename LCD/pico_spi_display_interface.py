@@ -3,6 +3,8 @@ from machine import SPI, Pin, PWM
 import time
 
 class PICOSPIDisplayInterface(object):
+    """Implements the SPI interface (for the ST7789VW LCD controller) on the Raspberry Pi Pico"""
+
     # NA - Rx
     # 17 - CSn (CS)
     # 18 - SCK (CLK)
