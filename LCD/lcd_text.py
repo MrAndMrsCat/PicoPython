@@ -1,15 +1,19 @@
 import io
 import os
+import math
 from .lcd_driver import LCDDriver
 
 class LCDTextWriter(object):
     """Displays text on an RGB565 display, either with 'console' behavior, or to specific coordinates"""
 
-    CHAR_WIDTH = 7
-    CHAR_HEIGHT = 13
+    FONT_BITMAPS_PATH = "./LCD/font/consolas"
+    CHAR_WIDTH = 15
+    CHAR_HEIGHT = 25
+    CONSOLE_CHAR_WIDTH = math.ceil(CHAR_WIDTH / 2)
+    CONSOLE_CHAR_HEIGHT = math.ceil(CHAR_HEIGHT / 2)
     LINE_FEED = chr(10)
     CARRIAGE_RETURN = chr(13)
-    character_bitmaps: dict = None # one font at at time for now, all printable ASCII chars uses 8.6kB
+    character_bitmaps: dict = None # one font at at time for now
 
     # singleton
     _instance = None
@@ -20,14 +24,15 @@ class LCDTextWriter(object):
             cls.y = 0
             cls.forecolor = 0, 255, 0
             cls.backcolor = 0, 0, 0
-            cls._import_character_bitmaps(cls, "./LCD/font/consolas")
         return cls._instance
 
 
     def initialize(self, lcd_driver: LCDDriver):
         self._driver: LCDDriver = lcd_driver
-        self.console_width = int(self._driver.width / self.CHAR_WIDTH)
-        self.console_height = int(self._driver.height / self.CHAR_HEIGHT)
+        self._import_character_bitmaps(self.FONT_BITMAPS_PATH)
+        self._frame_buffer = io.BytesIO(b'')
+        self.console_width = int(self._driver.width / self.CONSOLE_CHAR_WIDTH)
+        self.console_height = int(self._driver.height / self.CONSOLE_CHAR_HEIGHT)
 
 
     def console_write(self, string: str):
@@ -58,26 +63,44 @@ class LCDTextWriter(object):
         self.x = 0
         self.y += 1
         if self.y >= self.console_height:
-            self.y = 0 #wrap to top?
+            self.y = 0 #wrap to top
 
 
     def console_write_at(self, x: int, y: int, char: chr):
         """Display a character at this console position"""
-        self._set_frame_buffer(char, x * self.CHAR_WIDTH, y * self.CHAR_HEIGHT)
+        self.write_character_at(char, x * self.CONSOLE_CHAR_WIDTH, y * self.CONSOLE_CHAR_HEIGHT, "half")
 
 
-    def write_at(self, x: int, y: int, string: str, scale: int = 1):
+    def write_at(self, x: int, y: int, string: str, scale: str = "full"):
         """Display a string at this display coordinate"""
         x_offset = x
+        x_increment = self.CHAR_WIDTH if scale == "full" else self.CONSOLE_CHAR_WIDTH
         for char in string:
-            self._set_frame_buffer(char, x_offset, y, scale)
-            x_offset += self.CHAR_WIDTH * scale
+            self.write_character_at(char, x_offset, y, scale)
+            x_offset += x_increment
 
 
-    def _set_frame_buffer(self, char: chr, x: int, y: int, scale: int = 1):
-        data = self._get_character_bytes(char, self.forecolor, self.backcolor, scale)
-        self._driver.set_frame_buffer(x, y, self.CHAR_WIDTH * scale, self.CHAR_HEIGHT * scale, data)
-        
+    def write_character_at(self, char: chr, x: int, y: int, scale: str = "full"):
+        if scale == "full":
+            self._driver.set_frame_buffer_boundary(x, y, self.CHAR_WIDTH, self.CHAR_HEIGHT)
+            read_offset = 1
+            #buffer_size = self.CHAR_WIDTH * self.CHAR_HEIGHT
+        else:
+            self._driver.set_frame_buffer_boundary(x, y, self.CONSOLE_CHAR_WIDTH, self.CONSOLE_CHAR_HEIGHT)
+            read_offset = 2
+            #buffer_size = self.CONSOLE_CHAR_WIDTH * self.CONSOLE_CHAR_HEIGHT
+
+        alpha_bitmap = self.character_bitmaps[char]
+
+        for y in range(0, self.CHAR_HEIGHT, read_offset):
+            for x in range(0, self.CHAR_WIDTH, read_offset):
+                pixel = self._driver.pixel_from_mixture(self.forecolor, self.backcolor, alpha_bitmap[x + y * self.CHAR_WIDTH])
+                #self._driver.send_data(pixel)
+                self._frame_buffer.write(pixel)
+
+            self._driver.send_data(self._frame_buffer.getvalue())
+            self._frame_buffer.seek(0)
+
 
     def _get_character_bytes(self, char: chr, forecolor: int, backcolor: int, scale: int = 1):
         pixels = io.BytesIO(b'')
@@ -96,8 +119,6 @@ class LCDTextWriter(object):
                 for r in range(scale):
                     pixels.write(row.getvalue())
                 row.seek(0)
-
-        return pixels.getvalue()
 
 
     def _import_character_bitmaps(self, directory: str):

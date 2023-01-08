@@ -118,7 +118,8 @@ class WiFiTCPServer(object):
         self._client_write_stream = writer
         self._client_read_stream = reader
 
-        self.clients_connected = False
+        self.wifi_connected = True # ToDo, clean this up
+        self.clients_connected = True
         self._on_connection_changed()
 
         try:

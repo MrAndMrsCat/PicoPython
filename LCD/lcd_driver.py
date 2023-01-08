@@ -14,49 +14,51 @@ class LCDDriver(object):
     MADCTL_MH = 4   # Display Data Latch Data Order - LCD Refresh Right to Left 
 
     def __init__(self, spi_interface):
-        self._spi = spi_interface
+        self._interface = spi_interface
         self.width = 320
         self.height = 240
         self.max_buffer_length = 4096
 
 
-    def _command(self, command: bytes):
-        self._spi.send_command(command)
+    def send_command(self, command: bytes):
+        self._interface.send_command(command)
 
 
-    def _data(self, data: bytes):
-        self._spi.send_data(data)
+    def send_data(self, data: bytes):
+        self._interface.send_data(data)
+        self._previous_bytes = data
 
 
-    def set_frame_buffer(self, x: int, y: int, width: int, height: int, pixels: bytes):
-        """Set pixels from left to right, top to bottom"""
-        self._command(b'\x2A')
-        self._data(x.to_bytes(2, 'big')) 
-        self._data((x + width - 1).to_bytes(2, 'big')) 
+    def copy_data(self):
+        """Send the last bytes again"""
+        self._interface.send_data(self._previous_bytes)
 
-        self._command(b'\x2B')
-        self._data(y.to_bytes(2, 'big')) 
-        self._data((y + height - 1).to_bytes(2, 'big')) 
 
-        self._command(b'\x2C')
-        self._data(pixels)
+    def set_frame_buffer_boundary(self, x: int, y: int, width: int, height: int):
+        """Setup the bounderies for the LCD to recieve pixels data"""
+        self.send_command(b'\x2A')
+        self.send_data(x.to_bytes(2, 'big')) 
+        self.send_data((x + width - 1).to_bytes(2, 'big')) 
+
+        self.send_command(b'\x2B')
+        self.send_data(y.to_bytes(2, 'big')) 
+        self.send_data((y + height - 1).to_bytes(2, 'big')) 
+
+        self.send_command(b'\x2C')
 
 
     def fill_frame_buffer(self, x: int, y: int, width: int, height: int, pixel: bytes):
         """Set all pixels to the same value"""
-        buf = io.BytesIO(b'')
         
-        if width * height * 2 > self.max_buffer_length: # conserve memory
-            for p in range(width):
-                buf.write(pixel)
-
-            for y_idx in range(height):
-                self.set_frame_buffer(x, y + y_idx, width, 1, buf.getvalue())
-
-        else:
-            for p in range(width * height):
-                buf.write(pixel)
-            self.set_frame_buffer(x, y, width, height, buf.getvalue())
+        self.set_frame_buffer_boundary(x, y, width, height)
+        #for p in range(width * height):
+        #    self.send_data(pixel);
+            
+        self._row_bytes = pixel * width
+        for i in range(height):
+            self.send_data(self._row_bytes)
+            
+        #self.send_data(pixel * (width * height))
 
 
     def pixel_from_color(self, color: tuple[int, int, int]):
@@ -65,10 +67,11 @@ class LCDDriver(object):
             
     def pixel_from_rgb(self, red: int, green: int, blue: int):
         """Convert RGB888 to RGB565"""
-        r = int(red & 0b11111000) << 8
-        g = int(green & 0b11111100) << 3
-        b = int(blue >> 3) 
-        return (r|g|b).to_bytes(2, 'big')
+        return (
+            (int(red & 0b11111000) << 8) | 
+            (int(green & 0b11111100) << 3) | 
+            (int(blue >> 3) )
+            ).to_bytes(2, 'big')
 
 
     def pixel_from_mixture(self, forecolor: int, backcolor: int, alpha: int):
@@ -93,72 +96,72 @@ class LCDDriver(object):
 
 
     def initialize(self):
-        self._spi.reset()
+        self._interface.reset()
 
         # Memory Data Access Control (orientation essentially) + self.MADCTL_RGB
-        self._command(b'\x36')
-        self._data((self.MADCTL_MX + self.MADCTL_MV + self.MADCTL_MH ).to_bytes(1, 'big')) 
+        self.send_command(b'\x36')
+        self.send_data((self.MADCTL_MX + self.MADCTL_MV + self.MADCTL_MH ).to_bytes(1, 'big')) 
 
         # Interface Pixel Format
-        self._command(b'\x3A') 
-        self._data(b'\x05')
+        self.send_command(b'\x3A') 
+        self.send_data(b'\x05')
 
         # Display Inversion On
-        self._command(b'\x21')
+        self.send_command(b'\x21')
 
         # Column Address Set
-        self._command(b'\x2A')
-        self._data(b'\x00\x00\x01\x3F')
+        self.send_command(b'\x2A')
+        self.send_data(b'\x00\x00\x01\x3F')
 
         # Row Address Set
-        self._command(b'\x2B')
-        self._data(b'\x00\x00\x00\xEF')
+        self.send_command(b'\x2B')
+        self.send_data(b'\x00\x00\x00\xEF')
 
         # Porch Setting
-        self._command(b'\xB2')
-        self._data(b'\x0C\x0C\x00\x33\x33')
+        self.send_command(b'\xB2')
+        self.send_data(b'\x0C\x0C\x00\x33\x33')
 
         # Gate Control
-        self._command(b'\xB7')
-        self._data(b'\x35') 
+        self.send_command(b'\xB7')
+        self.send_data(b'\x35') 
 
         # VCOM Setting
-        self._command(b'\xBB')
-        self._data(b'\x1F')
+        self.send_command(b'\xBB')
+        self.send_data(b'\x1F')
 
         # LCM Control
-        self._command(b'\xC0')
-        self._data(b'\x2C')
+        self.send_command(b'\xC0')
+        self.send_data(b'\x2C')
 
         # VDV and VRH Command Enable .
-        self._command(b'\xC2')
-        self._data(b'\x01')
+        self.send_command(b'\xC2')
+        self.send_data(b'\x01')
 
         # VRH Set 
-        self._command(b'\xC3')
-        self._data(b'\x12')   
+        self.send_command(b'\xC3')
+        self.send_data(b'\x12')   
 
         # VDV Set
-        self._command(b'\xC4')
-        self._data(b'\x20')
+        self.send_command(b'\xC4')
+        self.send_data(b'\x20')
 
         # Frame Rate Control in Normal Mode
-        self._command(b'\xC6')
-        self._data(b'\x0F') 
+        self.send_command(b'\xC6')
+        self.send_data(b'\x0F') 
 
         # Power Control 1
-        self._command(b'\xD0')
-        self._data(b'\xA4\xA1')
+        self.send_command(b'\xD0')
+        self.send_data(b'\xA4\xA1')
 
         # Positive Voltage Gamma Control
-        self._command(b'\xE0')
-        self._data(b'\xD0\x08\x11\x08\x0C\x15\x39\x33\x50\x36\x13\x14\x29\x2D')
+        self.send_command(b'\xE0')
+        self.send_data(b'\xD0\x08\x11\x08\x0C\x15\x39\x33\x50\x36\x13\x14\x29\x2D')
 
         # Negative Voltage Gamma Control
-        self._command(b'\xE1')
-        self._data( b'\xD0\x08\x10\x08\x06\x06\x39\x44\x51\x0B\x16\x14\x2F\x31')
+        self.send_command(b'\xE1')
+        self.send_data( b'\xD0\x08\x10\x08\x06\x06\x39\x44\x51\x0B\x16\x14\x2F\x31')
 
         # Display Inversion On
         # Sleep Out
         # Display On 
-        self._command(b'\x21\x11\x29')
+        self.send_command(b'\x21\x11\x29')

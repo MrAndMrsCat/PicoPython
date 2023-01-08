@@ -14,7 +14,7 @@ class Indicator(object):
         self.text: str = text
         self.border: int = 2
         self.size = LCDTextWriter.CHAR_HEIGHT
-        self.text_scale: int = 1
+        self.text_scale: str = "full"
         self.enabled: bool = False
         self.enabled_color = (0, 255, 0)
         self.disabled_color = (100, 100, 100)
@@ -58,5 +58,6 @@ class Indicator(object):
 
 
     def enable(self, value: bool):
-        self.enabled = value
-        self.draw_indicator()
+        if value != self.enabled:
+            self.enabled = value
+            self.draw_indicator()
